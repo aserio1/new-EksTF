@@ -1,0 +1,64 @@
+pipeline {
+  agent any
+
+  environment {
+    TF_IN_AUTOMATION = "true"
+    AWS_DEFAULT_REGION = "us-gov-west-1"
+  }
+
+  options {
+    timestamps()
+    ansiColor('xterm')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Terraform Init') {
+      steps {
+        sh '''
+          terraform version
+          terraform init -backend-config=eks-primary/backend.hcl
+        '''
+      }
+    }
+
+    stage('Terraform Format Check') {
+      steps {
+        sh 'terraform fmt -check -recursive'
+      }
+    }
+
+    stage('Terraform Validate') {
+      steps {
+        sh 'terraform validate'
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        sh 'terraform plan -var-file=eks.tfvars -out=tfplan'
+      }
+    }
+
+    stage('Terraform Apply') {
+      when {
+        branch 'main'
+      }
+      steps {
+        input message: 'Apply Terraform plan?'
+        sh 'terraform apply -auto-approve tfplan'
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'tfplan', onlyIfSuccessful: false
+    }
+  }
+}
