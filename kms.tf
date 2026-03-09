@@ -1,9 +1,5 @@
-data "aws_caller_identity" "current" {}
-data "aws_partition" "current" {}
-data "aws_region" "current" {}
-
-resource "aws_kms_key" "eks" {
-  description             = "${local.cluster_name} EKS secrets encryption key"
+resource "aws_kms_key" "iac_kms_key" {
+  description             = "${var.project_name} EKS and EFS encryption key"
   deletion_window_in_days = 30
   enable_key_rotation     = true
 
@@ -14,20 +10,21 @@ resource "aws_kms_key" "eks" {
         Sid    = "EnableRootPermissions"
         Effect = "Allow"
         Principal = {
-          AWS = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:root"
+          AWS = "arn:${data.aws_partition.current.partition}:iam::${var.aws_account_id}:root"
         }
         Action   = "kms:*"
         Resource = "*"
       },
       {
-        Sid    = "AllowClusterAndAdminRoles"
+        Sid    = "AllowPlatformRoles"
         Effect = "Allow"
         Principal = {
-          AWS = [
+          AWS = compact([
+            var.iam_role,
             var.cluster_role_arn,
-            var.admin_role_arn,
-            var.deploy_role_arn
-          ]
+            var.node_role_arn,
+            var.admin_role_arn
+          ])
         }
         Action = [
           "kms:Encrypt",
@@ -43,22 +40,16 @@ resource "aws_kms_key" "eks" {
     ]
   })
 
-  tags = local.common_tags
+  tags = merge(
+    {
+      Name        = "${var.project_name}-kms"
+      Description = "EKS KMS Key"
+    },
+    var.tags
+  )
 }
 
-resource "aws_kms_alias" "eks" {
-  name          = "alias/${local.cluster_name}-eks"
-  target_key_id = aws_kms_key.eks.key_id
-}
-
-resource "aws_kms_key" "alb_logs" {
-  description             = "${local.cluster_name} ALB logs KMS key"
-  deletion_window_in_days = 30
-  enable_key_rotation     = true
-  tags                    = local.common_tags
-}
-
-resource "aws_kms_alias" "alb_logs" {
-  name          = "alias/${local.cluster_name}-alb-logs"
-  target_key_id = aws_kms_key.alb_logs.key_id
+resource "aws_kms_alias" "iac_kms_key" {
+  name          = "alias/${var.project_name}-eks"
+  target_key_id = aws_kms_key.iac_kms_key.key_id
 }
