@@ -8,40 +8,40 @@ terraform {
     }
   }
 
-  backend "s3" {}
+  backend "s3" {
+    encrypt = true
+    bucket  = "iadalfa-tfstate"
+    region  = "us-gov-west-1"
+  }
 }
 
 provider "aws" {
-  region = var.region
-
-  assume_role {
-    role_arn     = "arn:/ALFA-Deploy-Role"
-    session_name = "terraform-ra-deploy"
-  }
+  region = var.aws_region
 
   default_tags {
-    tags = {
-      Project     = "R-A"
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
+    tags = merge(
+      var.tags,
+      {
+        Name = "${var.project_name}-provider"
+      }
+    )
   }
 }
 
 provider "aws" {
+  region = var.aws_region
   alias  = "eks-role"
-  region = var.region
 
   assume_role {
-    role_arn     = "arn:role/ALFA-EKSCLUSTER"
-    session_name = "terraform-ra-eks-role"
+    role_arn = "arn:aws-us-gov:iam::262763737219:role/ALFA-Deploy-Role"
   }
 
   default_tags {
-    tags = {
-      Project     = "R-A"
-      Environment = var.environment
-      ManagedBy   = "Terraform"
-    }
+    tags = merge(
+      var.tags,
+      {
+        Name = "${var.project_name}-provider"
+      }
+    )
   }
 }
