@@ -1,66 +1,51 @@
 # M-A Parent EKS Module
 
-Reusable AWS GovCloud EKS parent module.
+Reusable AWS GovCloud Terraform module that provisions a full Amazon EKS platform stack.
 
-## Features
+This module is designed to be called from environment-specific child repositories.
 
-- EKS cluster
-- EKS managed node group
-- EKS add-ons:
-  - coredns
+---
+
+# Features
+
+This module provisions the following infrastructure:
+
+## EKS
+- EKS Cluster
+- Managed Node Group
+- Cluster encryption using KMS
+- EKS add-ons
+  - CoreDNS
   - kube-proxy
-  - vpc-cni
-- ALB with HTTP/HTTPS listeners
-- ALB target group scaffold
+  - VPC CNI
+
+## Networking
+- Application Load Balancer (ALB)
+- Target Group
+- HTTP / HTTPS listeners
+- Security Groups
+- VPC integration
+
+## Storage
 - S3 bucket for ALB access logs
-- S3 bucket logging to audit bucket
-- KMS encryption
+- S3 bucket encryption using KMS
+- S3 lifecycle policies
+- Optional EFS filesystem
+- Optional EFS Access Point
+
+## Observability
 - CloudWatch log group for EKS control plane logs
-- SNS notifications for ALB log bucket
-- Optional EFS and EFS access point
-- Security groups
-- EKS access entries for deploy and admin roles
+- SNS notifications for ALB access log bucket events
 
-## GovCloud notes
+## Security
+- KMS encryption for:
+  - EKS secrets
+  - EFS
+  - S3
+- Controlled security group rules
+- No hard-coded CIDR ranges
+- Security rules supplied by child module
 
-- Uses GovCloud ARN partition: `arn:aws-us-gov`
-- Designed for `us-gov-west-1`
-- Child/root module passes `aws.eks-role` alias into this module
+---
 
-## Required role inputs
-
-- cluster_role_arn
-- node_role_arn
-- admin_role_arn
-- iam_role
-
-## Example usage
-
-```hcl
-module "eks_primary" {
-  source = "git::https://github.ice.dhs.gov/M-A/alfa-modules.git//eks?ref=main"
-
-  providers = {
-    aws          = aws
-    aws.eks-role = aws.eks-role
-  }
-
-  aws_account_id              = var.aws_account_id
-  aws_region                  = var.aws_region
-  project_name                = var.project_name
-  iam_role                    = var.iam_role
-  alb_log_reader_arns         = var.alb_log_reader_arns
-  vpc_id                      = var.vpc_id
-  public_subnets              = var.public_subnets
-  private_subnets             = var.private_subnets
-  alert_email                 = var.alert_email
-  alb_access_log_audit_bucket = var.alb_access_log_audit_bucket
-  container_port              = var.container_port
-  desired_count               = var.desired_count
-  max_capacity                = var.max_capacity
-  min_capacity                = var.min_capacity
-  enable_efs                  = var.enable_efs
-  certificate_arn             = var.certificate_arn
-
-  tags                        = var.tags
-}
+# Repository Structure
