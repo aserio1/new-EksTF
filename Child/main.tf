@@ -1,34 +1,44 @@
 module "eks_primary" {
-  source = "git::https://github.com/YOUR-ORG/M-A.git?ref=v1.0.0"
+  source = "git::https://github.ice.dhs.gov/M-A/alfa-modules.git//eks?ref=main"
 
   providers = {
     aws          = aws
     aws.eks-role = aws.eks-role
   }
 
-  region             = var.region
-  name_prefix        = var.name_prefix
-  environment        = var.environment
-  vpc_id             = var.vpc_id
-  private_subnet_ids = var.private_subnet_ids
-  public_subnet_ids  = var.public_subnet_ids
-  cluster_version    = var.cluster_version
+  aws_account_id              = var.aws_account_id
+  aws_region                  = var.aws_region
+  project_name                = var.project_name
+  iam_role                    = var.iam_role
+  alb_log_reader_arns         = var.alb_log_reader_arns
 
-  cluster_role_arn = "arn:awsALFA-EKSCLUSTER"
-  deploy_role_arn  = "arn/ALFA-Deploy-Role"
-  node_role_arn    = "arn:/ALFA-EKS"
-  admin_role_arn   = "arn:a/IADSDC"
+  vpc_id                      = var.vpc_id
+  public_subnets              = var.public_subnets
+  private_subnets             = var.private_subnets
 
-  node_instance_types = var.node_instance_types
-  node_desired_size   = var.node_desired_size
-  node_min_size       = var.node_min_size
-  node_max_size       = var.node_max_size
+  alb_ingress_rules           = var.alb_ingress_rules
+  alb_egress_rules            = var.alb_egress_rules
+  eks_node_egress_rules       = var.eks_node_egress_rules
 
-  tags = merge(
-    {
-      Owner = "Platform"
-      Repo  = "R-A"
-    },
-    var.tags
-  )
+  alert_email                 = var.alert_email
+  alb_access_log_audit_bucket = var.alb_access_log_audit_bucket
+
+  container_port              = var.container_port
+
+  desired_count               = var.desired_count
+  max_capacity                = var.max_capacity
+  min_capacity                = var.min_capacity
+  cluster_version             = var.cluster_version
+  node_instance_types         = var.node_instance_types
+
+  enable_efs                  = var.enable_efs
+  efs_mount_point             = var.efs_mount_point
+  efs_container_path          = var.efs_container_path
+  certificate_arn             = var.certificate_arn
+
+  cluster_role_arn            = "/ALFA-EKSCLUSTER"
+  node_role_arn               = e/ALFA-EKS"
+  admin_role_arn              = "ae/IADSDC"
+
+  tags                        = var.tags
 }
