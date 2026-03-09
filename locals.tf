@@ -1,12 +1,17 @@
+data "aws_region" "current" {}
+data "aws_partition" "current" {}
+data "aws_caller_identity" "current" {}
+
 locals {
-  cluster_name = "${var.name_prefix}-${var.environment}-eks"
+  alb_log_bucket_name = "${var.project_name}-alb-access-log-${data.aws_region.current.name}"
+  cluster_name        = "${var.project_name}-eks"
 
   common_tags = merge(
     {
       Name        = local.cluster_name
-      Environment = var.environment
+      Project     = var.project_name
+      Application = var.project_name
       ManagedBy   = "Terraform"
-      Repository  = "M-A"
     },
     var.tags
   )
