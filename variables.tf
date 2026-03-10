@@ -1,5 +1,9 @@
+############################################
+# CORE AWS SETTINGS
+############################################
+
 variable "aws_account_id" {
-  description = "The AWS account ID"
+  description = "AWS account ID used for resource policies and logging"
   type        = string
 }
 
@@ -13,203 +17,221 @@ variable "project_name" {
   type        = string
 }
 
-variable "iam_role" {
-  description = "Primary deploy/admin IAM role ARN"
-  type        = string
+variable "tags" {
+  description = "Common tags applied to all resources"
+  type        = map(string)
+  default     = {}
 }
 
-variable "alb_log_reader_arns" {
-  description = "IAM role/user ARNs allowed to read ALB log bucket"
-  type        = list(string)
-  default     = []
-}
+############################################
+# NETWORK SETTINGS
+############################################
 
 variable "vpc_id" {
-  description = "VPC ID"
+  description = "VPC ID where EKS and ALB resources will be deployed"
   type        = string
 }
 
 variable "public_subnets" {
-  description = "Public subnet IDs for ALB"
+  description = "List of public subnet IDs for the ALB"
   type        = list(string)
 }
 
 variable "private_subnets" {
-  description = "Private subnet IDs for EKS and EFS"
+  description = "List of private subnet IDs used by EKS nodes and EFS"
   type        = list(string)
 }
 
-variable "alert_email" {
-  description = "Email for SNS subscription"
-  type        = string
+############################################
+# ALB SECURITY GROUP RULES
+############################################
+
+variable "alb_ingress_rules" {
+  description = "List of ingress rules for the ALB security group"
+  type = list(object({
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
 }
 
-variable "alb_access_log_audit_bucket" {
-  description = "Existing audit bucket for ALB log bucket access logging"
-  type        = string
+variable "alb_egress_rules" {
+  description = "List of egress rules for the ALB security group"
+  type = list(object({
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
 }
 
-variable "certificate_arn" {
-  description = "ACM certificate ARN for HTTPS listener"
-  type        = string
-  default     = null
+############################################
+# EKS WORKER NODE SECURITY GROUP RULES
+############################################
+
+variable "eks_node_egress_rules" {
+  description = "List of egress rules for the EKS worker node security group"
+  type = list(object({
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+  }))
+  default = []
 }
 
-variable "container_port" {
-  description = "Application port used by ALB target group and node access"
-  type        = number
-  default     = 8080
-}
+############################################
+# EKS CLUSTER SETTINGS
+############################################
 
 variable "cluster_version" {
-  description = "EKS cluster version"
+  description = "Kubernetes version for the EKS cluster"
   type        = string
   default     = "1.29"
 }
 
 variable "desired_count" {
-  description = "Desired size for EKS managed node group"
+  description = "Desired number of nodes in the managed node group"
   type        = number
-  default     = 2
 }
 
 variable "min_capacity" {
-  description = "Minimum size for EKS managed node group"
+  description = "Minimum number of nodes in the managed node group"
   type        = number
-  default     = 1
 }
 
 variable "max_capacity" {
-  description = "Maximum size for EKS managed node group"
+  description = "Maximum number of nodes in the managed node group"
   type        = number
-  default     = 5
 }
 
 variable "node_instance_types" {
-  description = "EKS managed node group instance types"
+  description = "Instance types used for the EKS managed node group"
   type        = list(string)
   default     = ["m5.large"]
 }
 
+variable "container_port" {
+  description = "Application container port used by ALB target group"
+  type        = number
+}
+
+############################################
+# IAM ROLES
+############################################
+
 variable "cluster_role_arn" {
-  description = "EKS control plane IAM role ARN"
+  description = "IAM role ARN for the EKS cluster"
   type        = string
 }
 
 variable "node_role_arn" {
-  description = "EKS managed node group IAM role ARN"
+  description = "IAM role ARN for the EKS worker nodes"
   type        = string
 }
 
 variable "admin_role_arn" {
-  description = "Additional EKS admin IAM role ARN"
+  description = "IAM role ARN granted administrative access to the EKS cluster"
   type        = string
 }
 
+variable "iam_role" {
+  description = "Primary deployment role used for Terraform operations"
+  type        = string
+}
+
+############################################
+# EKS ENDPOINT ACCESS
+############################################
+
 variable "endpoint_private_access" {
-  description = "Enable private endpoint access"
+  description = "Whether the EKS API server endpoint is private"
   type        = bool
   default     = true
 }
 
 variable "endpoint_public_access" {
-  description = "Enable public endpoint access"
+  description = "Whether the EKS API server endpoint is public"
   type        = bool
   default     = false
 }
 
+############################################
+# CLOUDWATCH LOGGING
+############################################
+
+variable "enabled_log_types" {
+  description = "List of EKS control plane logs to enable"
+  type        = list(string)
+
+  default = [
+    "api",
+    "audit",
+    "authenticator",
+    "controllerManager",
+    "scheduler"
+  ]
+}
+
+variable "cloudwatch_log_retention_days" {
+  description = "Retention period for CloudWatch logs"
+  type        = number
+  default     = 30
+}
+
+############################################
+# ALB TLS SETTINGS
+############################################
+
+variable "certificate_arn" {
+  description = "ACM certificate ARN used for HTTPS listener"
+  type        = string
+  default     = null
+}
+
+############################################
+# EFS SETTINGS
+############################################
+
 variable "enable_efs" {
-  description = "Enable EFS resources"
+  description = "Enable EFS filesystem for persistent storage"
   type        = bool
   default     = false
 }
 
 variable "efs_mount_point" {
-  description = "Reserved for downstream app usage"
+  description = "Application mount path for EFS"
   type        = string
   default     = "/mnt/efs"
 }
 
 variable "efs_container_path" {
-  description = "Reserved for downstream app usage"
+  description = "Subdirectory created within EFS"
   type        = string
   default     = "efs-storage"
 }
 
-variable "enabled_log_types" {
-  description = "EKS control plane log types"
+############################################
+# S3 LOGGING
+############################################
+
+variable "alb_access_log_audit_bucket" {
+  description = "S3 bucket where ALB access log bucket audit logs are delivered"
+  type        = string
+}
+
+variable "alb_log_reader_arns" {
+  description = "IAM principals allowed to read ALB access logs"
   type        = list(string)
-  default     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+  default     = []
 }
 
-variable "cloudwatch_log_retention_days" {
-  description = "Retention for EKS control plane CloudWatch logs"
-  type        = number
-  default     = 30
-}
+############################################
+# SNS ALERTING
+############################################
 
-variable "alb_ingress_rules" {
-  description = "Ingress rules for ALB security group"
-  type = list(object({
-    from_port   = number
-    to_port     = number
-    protocol    = string
-    cidr_blocks = list(string)
-  }))
-  default = [
-    {
-      from_port   = 80
-      to_port     = 80
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    },
-    {
-      from_port   = 443
-      to_port     = 443
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  ]
-}
-
-variable "alb_egress_rules" {
-  description = "Egress rules for ALB security group"
-  type = list(object({
-    from_port   = number
-    to_port     = number
-    protocol    = string
-    cidr_blocks = list(string)
-  }))
-  default = [
-    {
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  ]
-}
-
-variable "eks_node_egress_rules" {
-  description = "Egress rules for EKS node security group"
-  type = list(object({
-    from_port   = number
-    to_port     = number
-    protocol    = string
-    cidr_blocks = list(string)
-  }))
-  default = [
-    {
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  ]
-}
-
-variable "tags" {
-  description = "Common tags"
-  type        = map(string)
-  default     = {}
+variable "alert_email" {
+  description = "Email address subscribed to SNS alerts for ALB log events"
+  type        = string
 }
