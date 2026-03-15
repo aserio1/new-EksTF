@@ -1,19 +1,17 @@
-resource "aws_sns_topic" "alb_log_sns_topic" {
+resource "aws_sns_topic" "eks_alb_log_sns_topic" {
+  count             = var.create_sns_topic ? 1 : 0
   provider          = aws.eks-role
-  name              = "alb_log_notifications_${var.project_name}-sdo"
+  name              = "eks_alb_log_notifications_${var.project_name}"
   kms_master_key_id = "alias/aws/sns"
-
-  tags = merge(
-    {
-      Name        = "${var.project_name}-alb-log-notifications"
-      Description = "ALB log bucket SNS topic"
-    },
-    var.tags
-  )
 }
 
-resource "aws_sns_topic_policy" "alb_log_sns_policy" {
-  arn = aws_sns_topic.alb_log_sns_topic.arn
+locals {
+  eks_alb_sns_topic_arn = var.create_sns_topic ? aws_sns_topic.eks_alb_log_sns_topic[0].arn : var.existing_sns_topic_arn
+}
+
+resource "aws_sns_topic_policy" "eks_alb_log_sns_policy" {
+  count = local.eks_alb_sns_topic_arn != null ? 1 : 0
+  arn   = local.eks_alb_sns_topic_arn
 
   policy = jsonencode({
     Version = "2008-10-17"
@@ -22,84 +20,42 @@ resource "aws_sns_topic_policy" "alb_log_sns_policy" {
       {
         Effect = "Allow"
         Action = ["SNS:Publish"]
-        Resource = aws_sns_topic.alb_log_sns_topic.arn
+        Resource = local.eks_alb_sns_topic_arn
         Principal = {
           AWS = "*"
         }
         Condition = {
           ArnLike = {
-            "aws:SourceArn" = aws_s3_bucket.alb_access_log.arn
+            "aws:SourceArn" = aws_s3_bucket.eks_alb_access_log.arn
           }
           StringEquals = {
             "aws:SourceAccount" = var.aws_account_id
           }
         }
-      },
-      {
-        Sid    = "AllowTeamManagement"
-        Effect = "Allow"
-        Principal = {
-          AWS = concat(
-            [var.iam_role],
-            ["arn:aws-us-gov:iam::263408170269:root"]
-          )
-        }
-        Action = [
-          "SNS:Publish",
-          "SNS:RemovePermission",
-          "SNS:SetTopicAttributes",
-          "SNS:DeleteTopic",
-          "SNS:ListSubscriptionsByTopic",
-          "SNS:GetTopicAttributes",
-          "SNS:Receive",
-          "SNS:AddPermission",
-          "SNS:Subscribe"
-        ]
-        Resource = aws_sns_topic.alb_log_sns_topic.arn
-        Condition = {
-          StringEquals = {
-            "AWS:SourceOwner" = var.aws_account_id
-          }
-        }
-      },
-      {
-        Sid    = "AllowTeamReadSubscribe"
-        Effect = "Allow"
-        Principal = {
-          AWS = concat(
-            [var.iam_role],
-            ["arn:aws-us-gov:iam::263408170269:root"]
-          )
-        }
-        Action = [
-          "SNS:Subscribe",
-          "SNS:GetTopicAttributes",
-          "SNS:Receive"
-        ]
-        Resource = aws_sns_topic.alb_log_sns_topic.arn
       }
     ]
   })
 }
 
 resource "aws_s3_bucket_notification" "alb_access_log_notification" {
+  count    = local.eks_alb_sns_topic_arn != null ? 1 : 0
   provider = aws.eks-role
-  bucket   = aws_s3_bucket.alb_access_log.id
+  bucket   = aws_s3_bucket.eks_alb_access_log.id
 
   topic {
-    topic_arn = aws_sns_topic.alb_log_sns_topic.arn
+    topic_arn = local.eks_alb_sns_topic_arn
     events    = ["s3:ObjectCreated:*"]
   }
 
   depends_on = [
-    aws_sns_topic.alb_log_sns_topic,
-    aws_sns_topic_policy.alb_log_sns_policy
+    aws_sns_topic_policy.eks_alb_log_sns_policy
   ]
 }
 
 resource "aws_sns_topic_subscription" "alb_access_log_subscription" {
+  count     = local.eks_alb_sns_topic_arn != null ? 1 : 0
   provider  = aws.eks-role
-  topic_arn = aws_sns_topic.alb_log_sns_topic.arn
+  topic_arn = local.eks_alb_sns_topic_arn
   protocol  = "email"
   endpoint  = var.alert_email
 }
